@@ -7,5 +7,5 @@ locals {
        Name= local.common_name
 
     }
-     azs_name = slice(data.aws_availability_zones.available.zone_ids, 0,2)
+     azs_name = slice(data.aws_availability_zones.available.names, 0,2)
 }
