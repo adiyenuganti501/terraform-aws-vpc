@@ -29,11 +29,10 @@ resource "aws_subnet" "public" {
     var.public_subnet_tags,
     local.common_tags,
     {
-      Name= "${local.common_name}-roboshop"
+      Name= "${local.common_name}-public-${split("-", local.azs_name[count.index])[2]}"
     }
   )
 }
-
 
 resource "aws_subnet" "private" {
   count = length(var.private_subnet_cidrs)
@@ -44,12 +43,13 @@ resource "aws_subnet" "private" {
 
    tags = merge(
     var.private_subnet_tags,
-    local.common_tags
+    local.common_tags,
+    {
+      Name= "${local.common_name}-private-${split("-", local.azs_name[count.index])[2]}"
+    }
    )
   
 }
-
-
 
 resource "aws_subnet" "database" {
   count = length(var.database_subnet_cidrs)
@@ -59,9 +59,76 @@ resource "aws_subnet" "database" {
 
   tags = merge(
     var.databse_subnet_tags,
-    local.common_tags
+    local.common_tags,
+    {
+      Name= "${local.common_name}-database-${split("-", local.azs_name[count.index])[2]}"
+    }
   )
+}
 
+resource "aws_db_subnet_group" "roboshop" {
+  name= local.common_name
+  subnet_ids = aws_subnet.database[*].id
+
+  tags = local.common_tags
   
+}
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  tags = merge(
+    var.public_route_table_tags,
+    local.common_tags,
+    {
+      Name = "${local.common_name}-public"
+    }
+    
+  )
+}
+
+
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
+
+  tags = merge(
+    var.private_route_table_tags,
+    local.common_tags,
+    {
+      Name= "${local.common_name}-private"
+    }
+  )
+  
+}
+
+resource "aws_route_table" "database" {
+  vpc_id = aws_vpc.main.id
+
+  tags= merge(
+    var.database_route_table_tags,
+    local.common_tags,
+    {
+      Name = "${local.common_name}-database"
+    }
+  )
+  
+}
+
+resource "aws_route_table_association" "public" {
+  count = length(var.public_subnet_cidrs)
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_route_table_association" "private" {
+  count = length(var.private_subnet_cidrs)
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private.id
+}
+
+resource "aws_route_table_association" "database" {
+  count = length(var.database_subnet_cidrs)
+  subnet_id      = aws_subnet.database[count.index].id
+  route_table_id = aws_route_table.database.id
 }
 
